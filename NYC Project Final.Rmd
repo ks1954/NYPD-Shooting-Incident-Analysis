@@ -1,0 +1,217 @@
+---
+title: "NYPD Shooting Incident Analysis"
+date: "2024-07-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+Data Title: NYPD Shooting Incident Data (Historic) 
+URL: https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv
+Description: City of New York — List of every shooting incident that occurred in NYC going back to 2006 through the end of the previous calendar year. 
+
+This is a breakdown of every shooting incident that occurred in NYC going back to 2006 through 2023. This data is manually extracted every quarter and reviewed by the Office of Management Analysis and Planning before being posted on the NYPD website. Each record represents a shooting incident in NYC and includes information about the event, the location and time of occurrence. In addition, information related to suspect and victim demographics is also included. This data can be used by the public to explore the nature of shooting/criminal activity. 
+
+In this project, we will delve into an examination of the NYPD Shooting Incident dataset. Our process will start with importing the dataset, followed by conducting necessary data cleaning and exploratory analysis. Subsequently, we will implement various visualizations to further investigate the data. The objective of this analysis is to understand the geographical distribution of shooting incidents in NYC. The key question we seek to answer is: 
+
+Which boroughs in NY have the highest frequency of shooting incidents, and how does the distribution of incidents vary across different boroughs?
+
+How has the frequency of shooting incidents in NYC changed over the years, and are there any trends or patterns in the data?
+
+What is the distribution of perpetrator age group in shooting incidents, and which age groups are mostly commonly associated with these incidents in New York City.
+
+
+
+```{r}
+
+#Load library
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+
+
+```
+
+
+#Import Data
+
+```{r}
+
+# URL for dataset
+url <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv"
+
+# Import data
+nypd_shootings <- read_csv(url)
+
+# View first few rows 
+head(nypd_shootings)
+
+
+```
+
+## Data Exploration 
+
+
+```{r}
+
+# Initial exploration of dataset
+glimpse(nypd_shootings)
+
+summary(nypd_shootings)
+
+```
+## Data Cleaning
+```{r}
+#Rename Columns
+nypd_shootings <- rename(nypd_shootings,
+                         incident_key = INCIDENT_KEY,
+                         occur_date = OCCUR_DATE,
+                         occur_time = OCCUR_TIME,
+                         borough = BORO,
+                         precinct = PRECINCT,
+                         location_description = LOC_OF_OCCUR_DESC,
+                         jurisdiction_code = JURISDICTION_CODE,
+                         location_detail = LOCATION_DESC,
+                         is_statistical_murder = STATISTICAL_MURDER_FLAG,
+                         perp_age_group = PERP_AGE_GROUP,
+                         perp_sex = PERP_SEX,
+                         perp_race = PERP_RACE,
+                         vic_age_group = VIC_AGE_GROUP,
+                         vic_sex = VIC_SEX,
+                         vic_race = VIC_RACE,
+                         x_coord = X_COORD_CD,
+                         y_coord = Y_COORD_CD,
+                         latitude = Latitude,
+                         longitude = Longitude,
+                         lon_lat = Lon_Lat)
+
+```
+
+
+
+
+```{r}
+
+# Handle Missing Values
+nypd_shootings <- drop_na(nypd_shootings, c(perp_age_group, perp_sex, perp_race))
+
+nypd_shootings$occur_date <- as.Date(nypd_shootings$occur_date, format = "%m/%d/%Y")
+nypd_shootings$year <- year(nypd_shootings$occur_date)
+nypd_shootings$month <- month(nypd_shootings$occur_date)
+nypd_shootings$day <- day(nypd_shootings$occur_date)
+
+
+```
+
+```{r}
+
+# Inspect structure
+str(nypd_shootings)
+
+# View the first few rows
+head(nypd_shootings)
+
+# Get summary statistics
+summary(nypd_shootings)
+
+# Check for missing values
+sum(is.na(nypd_shootings))
+
+
+```
+## Visualization
+```{r}
+ggplot(nypd_shootings, aes(x = borough, fill = borough)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Dark2") + 
+  theme_minimal() +
+  labs(title = "Frequency of Incidents by Borough", x = "Borough", y = "Number of Incidents")
+
+
+
+```
+
+
+```{r}
+ggplot(nypd_shootings, aes(x = year, group = 1)) +
+  geom_line(aes(y = after_stat(count)), stat = "count") + # Count # of incidents per year
+  geom_point(aes(y = after_stat(count)), stat = "count", size = 3, color = "red") + 
+  scale_x_continuous(breaks = seq(min(nypd_shootings$year), max(nypd_shootings$year), by = 1)) + # 
+  theme_minimal() +
+  labs(title = "Trend of Shooting Incidents Over the Years", x = "Year", y = "Number of Incidents")
+
+```
+
+
+```{r}
+
+# 3.
+
+nypd_shootings_clean <- nypd_shootings %>%
+  filter(!perp_age_group %in% c("940", "224", "1020", "UNKNOWN", "1028" ,"(null)"))
+
+#create pie chart 
+ggplot(nypd_shootings_clean, aes(x = "", fill = factor(perp_age_group))) +
+  geom_bar(width = 1, stat = "count") +
+  coord_polar(theta = "y") +
+  theme_minimal() +
+  labs(title = "Age Group Distribution of Perpetrators in Shooting Incidents",
+       fill = "Age Group of Perpetrator") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank())
+
+
+
+```
+
+
+
+
+```{r}
+#4 
+
+# Create hour column from occur_time
+nypd_shootings$hour <- lubridate::hour(nypd_shootings$occur_time)
+
+# Density plot
+ggplot(nypd_shootings, aes(x = hour, fill = borough)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Incident Density by Time of Day and Borough", x = "Hour of Day", y = "Density", fill = "Borough")
+
+
+
+
+```
+
+
+
+
+
+## Bias
+
+Two possible biases that may arise are:
+
+1.Reporting rates may vary by borough. Some areas may have a higher level of trust in law enforcement and a greater willingness to report incidents, while others may have lower reporting rates.This can result in biased representations of shooting incidents across different boroughs.
+
+2.Bias may arise from the methods used to collect and record data. If there are inconsistencies or errors in data collection, certain incidents may be missed or inaccurately recorded, leading to biased results.
+
+
+## Conclusion
+ The visual and analytical exploration of the NYPD Shooting Incident dataset has yield several insighful observations about the pattern of gun-related violence in New York City. Through a series of visualizations, we have been able to dissect the spatial and temporal dynamics of shootings incidents across the
+
+
+The bar chart visualization of shooting incidents by borough reveals a clear disparity in the distribution of these events across New York City. Brooklyn emerges as the borough with the highest frequency of shooting incidents. Brooklyn's position as the most populous borough may partly explain the highest number of incidents; Socioeconomic factors , population density, varying levels of police presence and comminity resources could all contribute to these differences.
+
+The temporal analysis of shooting incidents in NYC from 2006 to 2019 reveals a significant fluctuation in frequency. Notably a peak occurred in 2006 , reflecting a period of heightened violence. However, this was followed by a notable decline, reaching the lowest point in 2019. The trend did not continue its down trajectory. In 2019, a sudden spike reversed the decline, catapulting the number of incidents back up.
+
+The analysis of perpetrator age groups in shooting incidents paints a picture of youth predominance in violent crimes within New York City. This demographic trend should inform law enforecement strategies and highlight an urgent need for proactive and preventive measures targeting young populations. Investment in youth programs, education, employment opportunities, and community support systems can be pivotal in addressing the root causes that lead younger individuals to engage in criminal activies.
+
+Overall, our analysis of the NYPD Shooting Incident dataset provides valuable insights into the spatial and statistical aspects of shooting incidents in New York City.
+
+
