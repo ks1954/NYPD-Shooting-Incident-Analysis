@@ -2,6 +2,7 @@
 title: "NYPD Shooting Incident Analysis"
 date: "2024-07-01"
 output: pdf_document
+name: KS
 ---
 
 ```{r setup, include=FALSE}
